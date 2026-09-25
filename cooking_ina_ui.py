@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 import customtkinter as ctk
+from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
 
 class CookingInaGUI:
@@ -323,6 +324,32 @@ class CookingInaGUI:
         )
         drop_hint_lbl.pack()
 
+        action_box.drop_target_register(DND_FILES)
+        action_box.dnd_bind('<<Drop>>', self.on_file_drop)
+
+    def on_file_drop(self, event):
+        """Triggered when a user drops a file into the upload zone."""
+        # Clean up the file path
+        file_path = event.data.strip('{}')
+        
+        # Verify it's a valid extension
+        if not file_path.lower().endswith(('.txt', '.json', '.pdf')):
+            print("Invalid file format. Please upload a .txt, .json, or .pdf")
+            return
+
+        # Extract file name and simulate parsing
+        file_name = file_path.split("/")[-1].split("\\")[-1]
+        self.current_recipe_title = f"Recipe: {file_name}"
+        self.recipe_steps = [
+            f"Imported steps from '{file_name}'.",
+            "Preheat pan/oven as needed.",
+            "Follow standard preparation instructions."
+        ]
+        self.current_step_index = 0
+        
+        # Automatically jump to the timer screen
+        self.show_timer_screen()
+
     def browse_file_dialog(self):
         """Opens native OS file chooser and launches timer with imported file."""
         file_path = filedialog.askopenfilename(
@@ -504,8 +531,15 @@ class CookingInaGUI:
     def on_check_metrics(self):
         print("Backend hook: Check Local Metrics")
 
+# Class that supports both CustomTkinter and DnD(drag and drop) events
+class CustomDnDWindow(ctk.CTk, TkinterDnD.DnDWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.TkdndVersion = TkinterDnD._require(self)
+
 if __name__ == "__main__":
     ctk.set_appearance_mode("Light")
-    root = ctk.CTk()
+    # Use the new merged window as the root
+    root = CustomDnDWindow() 
     app = CookingInaGUI(root)
     root.mainloop()
