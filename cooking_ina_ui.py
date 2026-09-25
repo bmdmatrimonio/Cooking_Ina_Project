@@ -3,6 +3,9 @@ from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
+from recipe_parser import parse_recipe_file, recipe_to_timer_data
+
+# Loads recipe sections from the parser
 
 class CookingInaGUI:
     def __init__(self, root):
@@ -30,7 +33,14 @@ class CookingInaGUI:
         
         # Store current recipe details globally across views
         self.current_recipe_title = "Recipe: Adobo Placeholder"
-        self.recipe_steps = ["Marinate the pork and chicken for 30 minutes."]
+        # Added by Ran-Ran - default recipe section
+        self.recipe_sections = [{
+            "name": "Default Step",
+            "time": "30 mins",
+            "duration_seconds": 1800,
+            "steps": ["Marinate the pork and chicken for 30 minutes."]
+        }]
+        self.recipe_steps = self.recipe_sections[0]["steps"]
         self.current_step_index = 0
         
         # Overlay frame tracking for fake modals
@@ -45,11 +55,29 @@ class CookingInaGUI:
         for widget in self.root.winfo_children():
             widget.destroy()
 
+    # Added by Ran-Ran - show the current cooking section
     def get_current_step_text(self):
-        """Formats the current step string."""
-        if self.recipe_steps and 0 <= self.current_step_index < len(self.recipe_steps):
-            return f"Step {self.current_step_index + 1}: {self.recipe_steps[self.current_step_index]}"
-        return "Step 1: Prepare ingredients."
+        """Display all instructions belonging to the current cooking stage."""
+        if (
+            hasattr(self, "recipe_sections")
+            and self.recipe_sections
+            and 0 <= self.current_step_index < len(self.recipe_sections)
+        ):
+            section = self.recipe_sections[self.current_step_index]
+
+            # Show all instructions in the current section
+            instructions = "\n".join(
+                f"{index}. {step}"
+                for index, step in enumerate(section["steps"], start=1)
+            )
+
+            return (
+                f"{section['name']}\n"
+                f"Time: {section['time']}\n\n"
+                f"{instructions}"
+            )
+
+        return "Prepare ingredients."
 
     # Modal Overlay Creation & Management
     def create_modal_overlay(self, width=480, height=450):
@@ -143,6 +171,8 @@ class CookingInaGUI:
                                   hover_color=self.hover_orange, text_color=self.text_light, width=30, height=30, command=self.close_modal)
         close_btn.pack(side="right")
 
+        # Added by Ran-Ran
+        self.recipe_sections = []
         self.recipe_steps = []
 
         self.popup_container = ctk.CTkScrollableFrame(modal_box, fg_color="transparent")
@@ -240,6 +270,14 @@ class CookingInaGUI:
         text = self.step_text_input.get("1.0", "end-1c").strip()
         if text:
             self.recipe_steps.append(text)
+
+            # Added by Ran-Ran - keep manual steps as sections
+            self.recipe_sections.append({
+                "name": f"Step {len(self.recipe_sections) + 1}",
+                "time": "30 mins",
+                "duration_seconds": 1800,
+                "steps": [text]
+            })
             
             step_card = ctk.CTkFrame(self.steps_list_frame, fg_color=self.card_bg, corner_radius=8)
             step_card.pack(fill="x", pady=3)
@@ -265,6 +303,14 @@ class CookingInaGUI:
             self.recipe_steps = ["Prepare ingredients."]
             self.current_recipe_title = "Recipe: Quick Timer"
 
+        # Added by Ran-Ran - prepare manual sections
+        if not self.recipe_sections and self.recipe_steps:
+            self.recipe_sections = [{
+                "name": "Recipe Step",
+                "time": "30 mins",
+                "duration_seconds": 1800,
+                "steps": self.recipe_steps
+            }]
         self.current_step_index = 0
         self.close_modal()
         self.show_timer_screen()
@@ -328,50 +374,73 @@ class CookingInaGUI:
         action_box.dnd_bind('<<Drop>>', self.on_file_drop)
 
     def on_file_drop(self, event):
-        """Triggered when a user drops a file into the upload zone."""
-        # Clean up the file path
+        """Reads a dropped recipe file using the recipe parser backend."""
         file_path = event.data.strip('{}')
-        
-        # Verify it's a valid extension
-        if not file_path.lower().endswith(('.txt', '.json', '.pdf')):
-            print("Invalid file format. Please upload a .txt, .json, or .pdf")
-            return
-
-        # Extract file name and simulate parsing
-        file_name = file_path.split("/")[-1].split("\\")[-1]
-        self.current_recipe_title = f"Recipe: {file_name}"
-        self.recipe_steps = [
-            f"Imported steps from '{file_name}'.",
-            "Preheat pan/oven as needed.",
-            "Follow standard preparation instructions."
-        ]
-        self.current_step_index = 0
-        
-        # Automatically jump to the timer screen
-        self.show_timer_screen()
+        self.load_recipe_file(file_path)
 
     def browse_file_dialog(self):
-        """Opens native OS file chooser and launches timer with imported file."""
+        """Opens native OS file chooser and parses the selected recipe."""
         file_path = filedialog.askopenfilename(
             title="Select Recipe File",
             filetypes=[("Recipe Documents", "*.txt *.json *.pdf"), ("All Files", "*.*")]
         )
+
         if file_path:
-            file_name = file_path.split("/")[-1]
-            self.current_recipe_title = f"Recipe: {file_name}"
+            self.load_recipe_file(file_path)
+
+    def load_recipe_file(self, file_path):
+        # Load and prepare the selected recipe
+        """Loads a structured recipe using the parsing backend."""
+        if not file_path.lower().endswith(('.txt', '.json', '.pdf')):
+            print("Invalid file format. Please upload a .txt, .json, or .pdf")
+            return
+
+        try:
+            recipe = parse_recipe_file(file_path)
+            title, sections = recipe_to_timer_data(recipe)
+
+            if not sections:
+                print("No recipe sections were found in the selected file.")
+                return
+
+            # Added by Ran-Ran - keep the parsed sections
+            self.recipe_sections = sections
             self.recipe_steps = [
-                f"Imported steps from '{file_name}'.",
-                "Preheat pan/oven as needed.",
-                "Follow standard preparation instructions."
+                step
+                for section in sections
+                for step in section["steps"]
             ]
+
+            self.current_recipe_title = f"Recipe: {title}"
             self.current_step_index = 0
+
             self.show_timer_screen()
+
+        except Exception as error:
+            print(f"Error reading recipe file: {error}")
+
+    # Added by Ran-Ran - get the current section time
+    def get_current_section_duration(self):
+        """Return the timer duration for the current cooking stage."""
+        if (
+            hasattr(self, "recipe_sections")
+            and self.recipe_sections
+            and 0 <= self.current_step_index < len(self.recipe_sections)
+        ):
+            return self.recipe_sections[self.current_step_index].get(
+                "duration_seconds",
+                1800
+            )
+
+        return 1800
 
     # Timer screen with Mid-Cook Step Creation
     def show_timer_screen(self):
         """Builds and displays the core timer screen."""
         self.clear_window()
-        self.timer.reset(1800)
+        # Added by Ran-Ran - use the section timer
+        duration = self.get_current_section_duration()
+        self.timer.reset(duration)
 
         self.main_container = ctk.CTkFrame(self.root, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=20, pady=15)
@@ -488,6 +557,9 @@ class CookingInaGUI:
         """Saves added step and updates timer view labels instantly."""
         text = self.mid_cook_textbox.get("1.0", "end-1c").strip()
         if text:
+            # Added by Ran-Ran - add to the current section
+            if hasattr(self, "recipe_sections") and self.recipe_sections:
+                self.recipe_sections[self.current_step_index]["steps"].append(text)
             self.recipe_steps.append(text)
             self.step_label.configure(text=self.get_current_step_text())
         self.close_modal()
@@ -515,18 +587,35 @@ class CookingInaGUI:
         self.timer.extend(60)
         self.update_timer_display()
     
+    # Added by Ran-Ran - repeat the current section
     def on_repeat(self):
-        self.timer.reset(1800)
+        self.timer.reset(self.get_current_section_duration())
         self.update_timer_display()
     
+    # Added by Ran-Ran - move between cooking sections
     def on_next_step(self):
-        if self.current_step_index < len(self.recipe_steps) - 1:
+        """Move to the next cooking stage and load its timer duration."""
+        if (
+            hasattr(self, "recipe_sections")
+            and self.current_step_index < len(self.recipe_sections) - 1
+        ):
             self.current_step_index += 1
-            self.step_label.configure(text=self.get_current_step_text())
-            self.timer.reset(1800)
+
+            section = self.recipe_sections[self.current_step_index]
+
+            self.step_label.configure(
+                text=self.get_current_step_text()
+            )
+
+            self.timer.reset(
+                section.get("duration_seconds", 1800)
+            )
+
             self.update_timer_display()
         else:
-            self.step_label.configure(text="All Steps Completed! Bon Appétit!")
+            self.step_label.configure(
+                text="All Steps Completed! Bon Appétit!"
+            )
 
     def on_check_metrics(self):
         print("Backend hook: Check Local Metrics")
