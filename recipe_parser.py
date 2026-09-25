@@ -164,7 +164,7 @@ def parse_recipe_text(text):
         if time_match and current_section is not None:
             current_section["time"] = time_match.group(1).strip()
 
-            convert time for the timer
+            # convert time for the timer
             current_section["duration_seconds"] = parse_time_to_seconds(
                 current_section["time"]
             )
