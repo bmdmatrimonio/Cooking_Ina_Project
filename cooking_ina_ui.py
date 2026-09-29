@@ -476,9 +476,7 @@ class CookingInaGUI:
         content_split.grid_columnconfigure(1, weight=2)  # Right timer panel
         content_split.grid_rowconfigure(0, weight=1)
 
-        # ---------------------------------------------------------
-        # LEFT SIDE: Checklist Panel
-        # ---------------------------------------------------------
+        # LEFT SIDE: Checklist Panel - Added by Justin
         self.checklist_card = ctk.CTkFrame(content_split, fg_color=self.card_bg, corner_radius=14)
         self.checklist_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
@@ -493,15 +491,13 @@ class CookingInaGUI:
         # Populate Checklist Items based on recipe sections/steps
         self.render_checklist_items()
 
-        # ---------------------------------------------------------
-        # RIGHT SIDE: Timer & Controls Panel
-        # ---------------------------------------------------------
+        # RIGHT SIDE: Timer & Controls Panel - Added by Justin
         right_panel = ctk.CTkFrame(content_split, fg_color="transparent")
         right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         
         # Current Active Instruction Display
         self.step_label = ctk.CTkLabel(
-            right_panel, text=self.get_current_step_text(), font=("Helvetica", 13), 
+            right_panel, text=self.get_current_step_text(), font=("Helvetica", 20), 
             text_color=self.text_light, wraplength=320, justify="left"
         )
         self.step_label.pack(fill="x", pady=(0, 10))
@@ -555,6 +551,7 @@ class CookingInaGUI:
 
         self.update_timer_display()
 
+    #Added by Justin
     def render_checklist_items(self):
         """Populates the left-side checklist scrollable container with recipe sections/steps."""
         for widget in self.checklist_scroll.winfo_children():
