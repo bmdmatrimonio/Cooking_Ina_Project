@@ -579,6 +579,14 @@ class CookingInaGUI:
 
         # Added by Jasper - Ingredients checklist
         ingredients_list = getattr(self, "recipe_ingredients", []) or []
+
+        if not hasattr(self, "ing_checkboxes"):
+            self.ing_checkboxes = []
+
+        if not hasattr(self, "ingredient_states"):
+            self.ingredient_states = ({})
+
+
         if ingredients_list:
             ingredients_header = ctk.CTkLabel(
                 self.checklist_scroll, 
@@ -589,26 +597,32 @@ class CookingInaGUI:
             )
             ingredients_header.pack(fill="x", pady=(10, 2), padx=5)
 
-        if not hasattr(self, "ingredients_checkboxes"):
-            self.ing_checkboxes = []
 
-        for ingredient in ingredients_list:
-            clean_text = str(ingredient).strip().lstrip("-").strip()
-            if not clean_text:
-                continue
+            for ingredient in ingredients_list:
+                clean_text = str(ingredient).strip().lstrip("-").strip()
+                if not clean_text:
+                    continue
 
-            chk = ctk.CTkCheckBox(
-                self.checklist_scroll,
-                text=clean_text,
-                font=("Helvetica", 12),
-                text_color=self.text_light,
-                checkbox_width=18,
-                checkbox_height=18,
-                border_width=2,
-                corner_radius=4,)
-            chk.pack(fill="x", padx=12, pady=4, anchor="w")
-            self.ing_checkboxes.append(chk)
-        self.checklist_scroll.update_idletasks()
+                is_checked = self.ingredient_states.get(clean_text, False)
+                var = ctk.BooleanVar(value=is_checked)
+
+                def on_toggle(item=clean_text, v=var):
+                    self.ingredient_states[item] = v.get()
+
+                chk = ctk.CTkCheckBox(
+                    self.checklist_scroll,
+                    text=clean_text,
+                    variable=var,
+                    command=on_toggle,
+                    font=("Helvetica", 12),
+                    text_color=self.text_light,
+                    checkbox_width=18,
+                    checkbox_height=18,
+                    border_width=2,
+                    corner_radius=4,)
+                chk.pack(fill="x", padx=12, pady=4, anchor="w")
+                self.ing_checkboxes.append(chk)
+
 
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
