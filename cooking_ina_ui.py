@@ -308,7 +308,7 @@ class CookingInaGUI:
             self.recipe_sections = [{
                 "name": "Recipe Step",
                 "time": "30 mins",
-                "duration_seconds": 1800,
+                "duration_seconds": 10,
                 "steps": self.recipe_steps
             }]
         self.current_step_index = 0

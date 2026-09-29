@@ -9,9 +9,9 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-
+#Fixed by Jasper
 class CookingTimer:
-    def __init__(self, initial_seconds=1800, alarm_filename="Ping"):
+    def __init__(self, initial_seconds=1800, alarm_filename="Ping.mp3"):
         self.time_left = initial_seconds
         self.is_running = False
         self.alarm_file = resource_path(alarm_filename)
