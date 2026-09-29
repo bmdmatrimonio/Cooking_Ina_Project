@@ -551,7 +551,7 @@ class CookingInaGUI:
 
         self.update_timer_display()
 
-    #Added by Justin
+    #Added by Justine
     def render_checklist_items(self):
         """Populates the left-side checklist scrollable container with recipe sections/steps."""
         for widget in self.checklist_scroll.winfo_children():
@@ -619,11 +619,22 @@ class CookingInaGUI:
         if hasattr(self, 'timer_label') and self.timer_label.winfo_exists():
             self.timer_label.configure(text=self.timer.get_time_formatted())
 
+    #Added by Justine for Checklist
     def tick(self):
+        """Handles second-by-second countdown and automatic transition when timer hits 00:00."""
         if self.timer.is_running and hasattr(self, 'timer_label') and self.timer_label.winfo_exists():
-            self.timer.decrement()
+            just_finished = self.timer.decrement()
             self.update_timer_display()
-            if self.timer.is_running:
+            
+            if just_finished:
+                # If there are still steps left, move to next and auto-start
+                if self.current_step_index < len(self.recipe_sections) - 1:
+                    self.on_next_step()
+                    self.on_start()
+                else:
+                    # Trigger the final completion state for the last step
+                    self.on_next_step()
+            elif self.timer.is_running:
                 self.root.after(1000, self.tick)
 
     def on_start(self):
@@ -643,6 +654,7 @@ class CookingInaGUI:
         self.update_timer_display()
     
     # Added by Ran-Ran - move between cooking sections
+    # Added by Justine - for checklist
     def on_next_step(self):
         """Move to the next cooking stage and load its timer duration."""
         if (
@@ -662,10 +674,16 @@ class CookingInaGUI:
             )
 
             self.update_timer_display()
+            #Added by Justine for checklist
+            self.render_checklist_items()
         else:
+            # Added by Justine - Mark past the last index so all checklist items show as checked (✔)
+            self.current_step_index = len(self.recipe_sections)
             self.step_label.configure(
                 text="All Steps Completed! Bon Appétit!"
             )
+            self.timer.pause()
+            self.render_checklist_items()
 
     def on_check_metrics(self):
         print("Backend hook: Check Local Metrics")

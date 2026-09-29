@@ -16,7 +16,7 @@ INGREDIENTS:
 - Cooking oil
 
 [Prep 1 - Pasta]
-TIME: 3 mins + 3 mins buffer
+TIME: 1 mins + 0 mins buffer
 
 - Get a deep cooking pot that can fit 5 liters of water with some room to spare.
 - Pour water into the pot and add salt.

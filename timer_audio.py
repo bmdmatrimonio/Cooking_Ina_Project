@@ -57,14 +57,23 @@ class CookingTimer:
         return f"{mins:02d}:{secs:02d}"
 
     def play_alarm(self):
-        """Loads and plays the audio file."""
+        """Loads and plays the audio file safely."""
         try:
+            # Stop any ongoing playback and rewind mixer
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+            
+            # Load and play fresh
             pygame.mixer.music.load(self.alarm_file)
             pygame.mixer.music.play() 
-        except pygame.error:
-            print(f"Audio file not found! Make sure '{self.alarm_file}' exists.")
+        except pygame.error as e:
+            print(f"Audio playback error: {e}. Make sure '{self.alarm_file}' exists.")
 
     def stop_alarm(self):
-        """Stops the audio playback."""
-        pygame.mixer.music.stop()
+        """Stops the audio playback and unloads the file."""
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+        except pygame.error:
+            pass
 
