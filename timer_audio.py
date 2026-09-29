@@ -11,7 +11,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 class CookingTimer:
-    def __init__(self, initial_seconds=1800, alarm_filename="alarm.wav"):
+    def __init__(self, initial_seconds=1800, alarm_filename="Ping.mp3"):
         self.time_left = initial_seconds
         self.is_running = False
         self.alarm_file = resource_path(alarm_filename)
