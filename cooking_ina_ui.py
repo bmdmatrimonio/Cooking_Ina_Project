@@ -621,20 +621,13 @@ class CookingInaGUI:
 
     #Added by Justine for Checklist
     def tick(self):
-        """Handles second-by-second countdown and automatic transition when timer hits 00:00."""
+        """Handles second-by-second countdown and stops at 00:00 without auto-advancing."""
         if self.timer.is_running and hasattr(self, 'timer_label') and self.timer_label.winfo_exists():
-            just_finished = self.timer.decrement()
+            self.timer.decrement()
             self.update_timer_display()
             
-            if just_finished:
-                # If there are still steps left, move to next and auto-start
-                if self.current_step_index < len(self.recipe_sections) - 1:
-                    self.on_next_step()
-                    self.on_start()
-                else:
-                    # Trigger the final completion state for the last step
-                    self.on_next_step()
-            elif self.timer.is_running:
+            # If the timer is still running (greater than 0), schedule the next second
+            if self.timer.is_running:
                 self.root.after(1000, self.tick)
 
     def on_start(self):
