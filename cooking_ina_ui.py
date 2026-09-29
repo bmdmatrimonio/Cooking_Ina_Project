@@ -589,7 +589,7 @@ class CookingInaGUI:
             )
             ingredients_header.pack(fill="x", pady=(10, 2), padx=5)
 
-        if not hasattr(self, "ing_checkboxes"):
+        if not hasattr(self, "ingredients_checkboxes"):
             self.ing_checkboxes = []
 
         for ingredient in ingredients_list:
@@ -609,7 +609,7 @@ class CookingInaGUI:
             chk.pack(fill="x", padx=12, pady=4, anchor="w")
             self.ing_checkboxes.append(chk)
         self.checklist_scroll.update_idletasks()
-        
+
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
         """Allows adding extra steps during active timer without resetting countdown."""
