@@ -434,20 +434,20 @@ class CookingInaGUI:
 
         return 1800
 
-    # Timer screen with Mid-Cook Step Creation
+    # Timer screen with Mid-Cook Step Creation & Left-Side Checklist Panel
     def show_timer_screen(self):
-        """Builds and displays the core timer screen."""
+        """Builds and displays the core timer screen with a left-side checklist panel."""
         self.clear_window()
-        # Added by Ran-Ran - use the section timer
         duration = self.get_current_section_duration()
         self.timer.reset(duration)
 
+        # Main Root Container
         self.main_container = ctk.CTkFrame(self.root, fg_color="transparent")
-        self.main_container.pack(fill="both", expand=True, padx=20, pady=15)
+        self.main_container.pack(fill="both", expand=True, padx=15, pady=15)
         
-        # Top Nav Section
+        # Top Nav Section (Spans full width)
         self.top_nav_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.top_nav_frame.pack(fill="x")
+        self.top_nav_frame.pack(fill="x", pady=(0, 10))
         
         self.back_btn = ctk.CTkButton(
             self.top_nav_frame, text="<- Back to Menu", font=("Helvetica", 13, "bold"),
@@ -455,76 +455,129 @@ class CookingInaGUI:
         )
         self.back_btn.pack(side="left")
 
-        # Quick + Add Step Button active during timer phase
         self.add_step_timer_btn = ctk.CTkButton(
             self.top_nav_frame, text="+ Add Step", font=("Helvetica", 13, "bold"),
             fg_color=self.primary_orange, hover_color=self.hover_orange, 
             width=100, height=30, command=self.show_mid_cook_add_step_modal
         )
         self.add_step_timer_btn.pack(side="right")
-        
-        # Recipe Info Section
-        self.header_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.header_frame.pack(fill="x", pady=(5, 10))
-        
+
+        # Recipe Title Header
         self.title_label = ctk.CTkLabel(
-            self.header_frame, text=self.current_recipe_title, font=("Helvetica", 22, "bold"), text_color=self.text_light
+            self.main_container, text=self.current_recipe_title, font=("Helvetica", 20, "bold"), text_color=self.text_light
         )
-        self.title_label.pack(pady=(0, 5))
+        self.title_label.pack(anchor="w", pady=(0, 10))
         
+        # Split Layout Container (Left: Checklist | Right: Timer & Controls)
+        content_split = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        content_split.pack(fill="both", expand=True)
+
+        content_split.grid_columnconfigure(0, weight=1)  # Left checklist panel
+        content_split.grid_columnconfigure(1, weight=2)  # Right timer panel
+        content_split.grid_rowconfigure(0, weight=1)
+
+        # ---------------------------------------------------------
+        # LEFT SIDE: Checklist Panel
+        # ---------------------------------------------------------
+        self.checklist_card = ctk.CTkFrame(content_split, fg_color=self.card_bg, corner_radius=14)
+        self.checklist_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        
+        checklist_header = ctk.CTkLabel(
+            self.checklist_card, text="Recipe Checklist", font=("Helvetica", 14, "bold"), text_color=self.text_light
+        )
+        checklist_header.pack(anchor="w", padx=12, pady=(12, 5))
+
+        self.checklist_scroll = ctk.CTkScrollableFrame(self.checklist_card, fg_color="transparent")
+        self.checklist_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 10))
+
+        # Populate Checklist Items based on recipe sections/steps
+        self.render_checklist_items()
+
+        # ---------------------------------------------------------
+        # RIGHT SIDE: Timer & Controls Panel
+        # ---------------------------------------------------------
+        right_panel = ctk.CTkFrame(content_split, fg_color="transparent")
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        
+        # Current Active Instruction Display
         self.step_label = ctk.CTkLabel(
-            self.header_frame, text=self.get_current_step_text(), font=("Helvetica", 15), text_color=self.text_light, wraplength=500
+            right_panel, text=self.get_current_step_text(), font=("Helvetica", 13), 
+            text_color=self.text_light, wraplength=320, justify="left"
         )
-        self.step_label.pack(fill="x")
+        self.step_label.pack(fill="x", pady=(0, 10))
         
-        # Middle Section: Centered Timer Card
-        self.timer_box = ctk.CTkFrame(self.main_container, fg_color=self.card_bg, corner_radius=20)
-        self.timer_box.pack(expand=True, pady=10)
+        # Centered Timer Card
+        self.timer_box = ctk.CTkFrame(right_panel, fg_color=self.card_bg, corner_radius=20)
+        self.timer_box.pack(expand=True, pady=5)
         
         self.timer_label = ctk.CTkLabel(
-            self.timer_box, text="30:00", font=("Helvetica", 76, "bold"), text_color=self.text_light
+            self.timer_box, text="30:00", font=("Helvetica", 64, "bold"), text_color=self.text_light
         )
-        self.timer_label.pack(padx=45, pady=15)
+        self.timer_label.pack(padx=30, pady=12)
         
         # Bottom Controls
-        self.controls_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.controls_frame.pack(pady=10)
+        self.controls_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
+        self.controls_frame.pack(pady=8)
         
         self.start_btn = ctk.CTkButton(
-            self.controls_frame, text="Start", font=("Helvetica", 14, "bold"),
-            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=110, height=36, command=self.on_start
+            self.controls_frame, text="Start", font=("Helvetica", 13, "bold"),
+            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_start
         )
-        self.start_btn.grid(row=0, column=0, padx=8)
+        self.start_btn.grid(row=0, column=0, padx=5)
         
         self.pause_btn = ctk.CTkButton(
-            self.controls_frame, text="Pause", font=("Helvetica", 14, "bold"),
-            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=110, height=36, command=self.on_pause
+            self.controls_frame, text="Pause", font=("Helvetica", 13, "bold"),
+            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_pause
         )
-        self.pause_btn.grid(row=0, column=1, padx=8)
+        self.pause_btn.grid(row=0, column=1, padx=5)
         
         self.extend_btn = ctk.CTkButton(
-            self.controls_frame, text="+1 Min", font=("Helvetica", 14, "bold"),
-            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=110, height=36, command=self.on_extend
+            self.controls_frame, text="+1 Min", font=("Helvetica", 13, "bold"),
+            fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_extend
         )
-        self.extend_btn.grid(row=0, column=2, padx=8)
+        self.extend_btn.grid(row=0, column=2, padx=5)
         
-        # Footer Step Controls
-        self.nav_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.nav_frame.pack(pady=(10, 5))
+        # Footer Step Navigation Controls
+        self.nav_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
+        self.nav_frame.pack(pady=(5, 5))
         
         self.repeat_btn = ctk.CTkButton(
-            self.nav_frame, text="Repeat Step", font=("Helvetica", 13),
-            fg_color="#8D8D8D", hover_color="#707070", width=130, height=34, command=self.on_repeat
+            self.nav_frame, text="Repeat Step", font=("Helvetica", 12),
+            fg_color="#8D8D8D", hover_color="#707070", width=140, height=32, command=self.on_repeat
         )
-        self.repeat_btn.grid(row=0, column=0, padx=10)
+        self.repeat_btn.grid(row=0, column=0, padx=6)
         
         self.next_btn = ctk.CTkButton(
-            self.nav_frame, text="Next Step ->", font=("Helvetica", 13, "bold"),
-            fg_color=self.accent_green, hover_color="#388E3C", width=130, height=34, command=self.on_next_step
+            self.nav_frame, text="Next Step ->", font=("Helvetica", 12, "bold"),
+            fg_color=self.accent_green, hover_color="#388E3C", width=140, height=32, command=self.on_next_step
         )
-        self.next_btn.grid(row=0, column=1, padx=10)
+        self.next_btn.grid(row=0, column=1, padx=6)
 
         self.update_timer_display()
+
+    def render_checklist_items(self):
+        """Populates the left-side checklist scrollable container with recipe sections/steps."""
+        for widget in self.checklist_scroll.winfo_children():
+            widget.destroy()
+
+        if hasattr(self, "recipe_sections") and self.recipe_sections:
+            for idx, section in enumerate(self.recipe_sections):
+                # Highlight current active step differently
+                is_current = (idx == self.current_step_index)
+                box_color = "#8C3E24" if is_current else "transparent"
+                border_col = self.accent_green if is_current else "#C46849"
+                
+                item_frame = ctk.CTkFrame(self.checklist_scroll, fg_color=box_color, corner_radius=6, border_width=1, border_color=border_col)
+                item_frame.pack(fill="x", pady=3, padx=2)
+
+                status_icon = "⏳ " if is_current else ("✔ " if idx < self.current_step_index else "○ ")
+                lbl_text = f"{status_icon}{section['name']} ({section.get('time', '30 mins')})"
+                
+                item_lbl = ctk.CTkLabel(
+                    item_frame, text=lbl_text, font=("Helvetica", 12, "bold" if is_current else "normal"),
+                    text_color=self.text_light, anchor="w", justify="left", wraplength=170
+                )
+                item_lbl.pack(fill="x", padx=8, pady=6)
 
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
