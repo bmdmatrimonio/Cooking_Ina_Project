@@ -3,7 +3,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
-from recipe_parser import parse_recipe_file, recipe_to_timer_data
+from recipe_parser import parse_recipe_file, recipe_to_timer_data, parse_recipe_text
 
 # Loads recipe sections from the parser
 
@@ -404,6 +404,7 @@ class CookingInaGUI:
                 return
 
             # Added by Ran-Ran - keep the parsed sections
+            self.recipe_ingredients = ingredients = recipe.get("ingredients", [])
             self.recipe_sections = sections
             self.recipe_steps = [
                 step
@@ -576,6 +577,39 @@ class CookingInaGUI:
                 )
                 item_lbl.pack(fill="x", padx=8, pady=6)
 
+        # Added by Jasper - Ingredients checklist
+        ingredients_list = getattr(self, "recipe_ingredients", []) or []
+        if ingredients_list:
+            ingredients_header = ctk.CTkLabel(
+                self.checklist_scroll, 
+                text="Ingredients:", 
+                font=("Helvetica", 14, "bold"), 
+                text_color=self.text_light, 
+                anchor="w"
+            )
+            ingredients_header.pack(fill="x", pady=(10, 2), padx=5)
+
+        if not hasattr(self, "ing_checkboxes"):
+            self.ing_checkboxes = []
+
+        for ingredient in ingredients_list:
+            clean_text = str(ingredient).strip().lstrip("-").strip()
+            if not clean_text:
+                continue
+
+            chk = ctk.CTkCheckBox(
+                self.checklist_scroll,
+                text=clean_text,
+                font=("Helvetica", 12),
+                text_color=self.text_light,
+                checkbox_width=18,
+                checkbox_height=18,
+                border_width=2,
+                corner_radius=4,)
+            chk.pack(fill="x", padx=12, pady=4, anchor="w")
+            self.ing_checkboxes.append(chk)
+        self.checklist_scroll.update_idletasks()
+        
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
         """Allows adding extra steps during active timer without resetting countdown."""
