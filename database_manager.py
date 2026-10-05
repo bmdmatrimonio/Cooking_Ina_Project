@@ -32,16 +32,6 @@ DB_FILENAME = "cooking_ina.db"
 # Same fallback duration recipe_parser.py uses when a section has no time
 DEFAULT_DURATION_SECONDS = 1800
 
-egg = [
-    ("Soft Boiled Egg", "6 mins"),
-    ("Hard Boiled Egg", "10 - 12 mins"),
-]
-
-pasta_noodles = [
-    ("Spaghetti", "8-10 mins"),
-]
-
-saved_food_times = egg + pasta_noodles
 
 def _default_db_path():
     # Keep the database next to the app instead of the current working
@@ -93,11 +83,6 @@ CREATE TABLE IF NOT EXISTS steps (
     UNIQUE (section_id, position)
 );
 
-CREATE TABLE IF NOT EXISTS food_cooking_times (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    food_item   TEXT    NOT NULL UNIQUE,
-    time_needed TEXT    NOT NULL
-);
 """
 
 
@@ -389,8 +374,5 @@ if __name__ == "__main__":
 
     print(f"Database: {DB_PATH}")
     print(f"{len(saved)} saved recipe(s)")
-    print(f"{len(food_times)} pre-saved food cooking time(s):")
     for item in saved:
         print(f"  [{item['id']}] {item['title']} - {len(item['sections'])} sections")
-    for item, time_needed in food_times:
-        print(f"  - {item}: {time_needed}")
