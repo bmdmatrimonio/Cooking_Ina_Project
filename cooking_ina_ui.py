@@ -1,13 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog
-import copy # New
+import copy
+import database_manager
+from database_manager import save_metric, get_all_recipes, initialize_database
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
 from recipe_parser import parse_recipe_file, recipe_to_timer_data, parse_recipe_text
-from database_manager import initialize_database, save_recipe, get_all_recipes #New
-
-# Loads recipe sections from the parser
 
 class CookingInaGUI:
     def __init__(self, root):
@@ -58,6 +57,7 @@ class CookingInaGUI:
         
         # Start the app on the Main Menu
         self.show_main_menu()
+        database_manager.init_metrics_table()
 
     def clear_window(self):
         """Helper method to destroy all widgets currently on the screen."""
@@ -253,19 +253,50 @@ class CookingInaGUI:
         add_btn.pack(fill="x")
 
     def show_add_step_form(self):
-        """Reveals step input textbox inside fake window."""
+        """Reveals step instruction textbox and custom duration input fields."""
         for widget in self.add_step_container.winfo_children():
             widget.destroy()
 
         form_card = ctk.CTkFrame(self.add_step_container, fg_color=self.text_light, corner_radius=10)
         form_card.pack(fill="x", pady=5)
 
+        # 1. Step Instruction Text Input
         input_label = ctk.CTkLabel(form_card, text="What is the next step?", font=("Helvetica", 12, "bold"), text_color="#333333")
-        input_label.pack(anchor="w", padx=12, pady=(10, 4))
+        input_label.pack(anchor="w", padx=12, pady=(10, 2))
 
-        self.step_text_input = ctk.CTkTextbox(form_card, width=380, height=70, font=("Helvetica", 13), fg_color="#F4F4F4", text_color="#333333")
-        self.step_text_input.pack(fill="x", padx=12, pady=4)
+        self.step_text_input = ctk.CTkTextbox(form_card, width=380, height=55, font=("Helvetica", 13), fg_color="#F4F4F4", text_color="#333333")
+        self.step_text_input.pack(fill="x", padx=12, pady=2)
 
+        # 2. Step Time Duration Input Row
+        time_frame = ctk.CTkFrame(form_card, fg_color="transparent")
+        time_frame.pack(fill="x", padx=12, pady=(6, 8))
+
+        time_label = ctk.CTkLabel(time_frame, text="Timer Duration:", font=("Helvetica", 12, "bold"), text_color="#333333")
+        time_label.pack(side="left", padx=(0, 10))
+
+        # Minutes Entry
+        self.step_min_entry = ctk.CTkEntry(
+            time_frame, width=55, placeholder_text="15", font=("Helvetica", 12),
+            fg_color="#F4F4F4", text_color="#333333"
+        )
+        self.step_min_entry.pack(side="left", padx=2)
+        self.step_min_entry.insert(0, "15") # Default pre-fill: 15 mins
+
+        min_unit_lbl = ctk.CTkLabel(time_frame, text="m", font=("Helvetica", 12), text_color="#555555")
+        min_unit_lbl.pack(side="left", padx=(2, 10))
+
+        # Seconds Entry
+        self.step_sec_entry = ctk.CTkEntry(
+            time_frame, width=55, placeholder_text="0", font=("Helvetica", 12),
+            fg_color="#F4F4F4", text_color="#333333"
+        )
+        self.step_sec_entry.pack(side="left", padx=2)
+        self.step_sec_entry.insert(0, "0")
+
+        sec_unit_lbl = ctk.CTkLabel(time_frame, text="s", font=("Helvetica", 12), text_color="#555555")
+        sec_unit_lbl.pack(side="left", padx=2)
+
+        # 3. Action Buttons
         action_frame = ctk.CTkFrame(form_card, fg_color="transparent")
         action_frame.pack(fill="x", padx=12, pady=(4, 10))
 
@@ -284,25 +315,48 @@ class CookingInaGUI:
         save_btn.pack(side="right")
 
     def save_step_item(self):
-        """Saves typed step into local step array."""
+        """Parses typed text and time inputs into section structure."""
         text = self.step_text_input.get("1.0", "end-1c").strip()
+        
+        # Parse Duration Inputs safely
+        try:
+            mins = int(self.step_min_entry.get().strip() or "0")
+        except ValueError:
+            mins = 0
+
+        try:
+            secs = int(self.step_sec_entry.get().strip() or "0")
+        except ValueError:
+            secs = 0
+
+        # Calculate Total Seconds & Text Format
+        total_seconds = (mins * 60) + secs
+        if total_seconds <= 0:
+            total_seconds = 1800  # Fallback: 30 minutes
+            time_str = "30 mins"
+        elif secs > 0:
+            time_str = f"{mins}m {secs}s" if mins else f"{secs} secs"
+        else:
+            time_str = f"{mins} mins"
+
         if text:
             self.recipe_steps.append(text)
 
-            # Added by Ran-Ran - keep manual steps as sections
+            step_number = len(self.recipe_sections) + 1
             self.recipe_sections.append({
-                "name": f"Step {len(self.recipe_sections) + 1}",
-                "time": "30 mins",
-                "duration_seconds": 1800,
+                "name": f"Step {step_number}",
+                "time": time_str,
+                "duration_seconds": total_seconds,
                 "steps": [text]
             })
             
+            # Render added step card displaying step title and custom duration
             step_card = ctk.CTkFrame(self.steps_list_frame, fg_color=self.card_bg, corner_radius=8)
             step_card.pack(fill="x", pady=3)
             
             step_lbl = ctk.CTkLabel(
                 step_card, 
-                text=f"Step {len(self.recipe_steps)}: {text}", 
+                text=f"Step {step_number} ({time_str}): {text}", 
                 font=("Helvetica", 12, "bold"), 
                 text_color=self.text_light, 
                 wraplength=360, justify="left", anchor="w"
@@ -331,7 +385,7 @@ class CookingInaGUI:
             self.recipe_sections = [{
                 "name": "Recipe Step",
                 "time": "30 mins",
-                "duration_seconds": 10,
+                "duration_seconds": 1800,
                 "steps": self.recipe_steps
             }]
 
@@ -445,7 +499,7 @@ class CookingInaGUI:
             self.save_recipe_to_database(recipe)
 
             # Added by Ran-Ran - keep the parsed sections
-            self.recipe_ingredients = ingredients = recipe.get("ingredients", [])
+            self.recipe_ingredients = recipe.get("ingredients", [])
             self.recipe_sections = sections
             self.recipe_steps = [
                 step
@@ -469,7 +523,7 @@ class CookingInaGUI:
         stop the user from cooking the recipe they just loaded.
         """
         try:
-            return save_recipe(recipe)
+            return database_manager.save_recipe(recipe)
         except Exception as error:
             print(f"Could not save recipe to the database: {error}")
             return None
@@ -541,6 +595,39 @@ class CookingInaGUI:
 
         for recipe in recipes:
             self.build_saved_recipe_row(recipe_list, recipe)
+
+    def on_task_complete(self):
+        """Saves metric data when a recipe is finished."""
+        recipe_name = self.current_recipe_title.replace("Recipe: ", "")
+        
+        # Pull base time from current/last step section
+        if hasattr(self, "recipe_sections") and self.recipe_sections:
+            total_expected_secs = sum(sec.get("duration_seconds", 1800) for sec in self.recipe_sections)
+            base_mins = total_expected_secs // 60
+            base_time = f"{base_mins} mins"
+        else:
+            base_time = "30 mins"
+
+        # Calculate actual vs expected time difference
+        actual_secs = getattr(self, "session_elapsed_seconds", 0)
+        expected_secs = sum(sec.get("duration_seconds", 1800) for sec in getattr(self, "recipe_sections", []))
+        diff_secs = actual_secs - expected_secs
+        
+        diff_mins = abs(diff_secs) // 60
+        diff_sign = "+" if diff_secs >= 0 else "-"
+        extra_time_str = f"{diff_sign}{diff_mins} mins"
+        
+        act_mins, act_secs_rem = divmod(actual_secs, 60)
+        total_time_str = f"{act_mins}m {act_secs_rem}s"
+
+        save_metric(
+            name=recipe_name,
+            base_time=base_time,
+            extra_time=extra_time_str,
+            total_time=total_time_str,
+            notes="Completed all steps"
+        )
+        print(f"Metrics saved for {recipe_name}")
 
     def build_saved_recipe_row(self, parent, recipe):
         """Creates one clickable recipe card for the saved recipes list."""
@@ -648,13 +735,16 @@ class CookingInaGUI:
         duration = self.get_current_section_duration()
         self.timer.reset(duration)
 
+        # Track session elapsed time for actual vs expected calculation
+        self.session_elapsed_seconds = 0
+
         # Main Root Container
         self.main_container = ctk.CTkFrame(self.root, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=15, pady=15)
         
         # Top Nav Section (Spans full width)
         self.top_nav_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.top_nav_frame.pack(fill="x", pady=(0, 10))
+        self.top_nav_frame.pack(fill="x", pady=(0, 5))
         
         self.back_btn = ctk.CTkButton(
             self.top_nav_frame, text="<- Back to Menu", font=("Helvetica", 13, "bold"),
@@ -669,11 +759,22 @@ class CookingInaGUI:
         )
         self.add_step_timer_btn.pack(side="right")
 
+        # Actual vs Expected Time Header
+        self.time_header_frame = ctk.CTkFrame(self.main_container, fg_color=self.card_bg, corner_radius=8)
+        self.time_header_frame.pack(fill="x", pady=(0, 8), padx=2)
+        
+        self.time_header_label = ctk.CTkLabel(
+            self.time_header_frame, text="Actual: 00:00 | Expected: 00:00 (+0 mins)",
+            font=("Helvetica", 12, "bold"), text_color=self.text_light
+        )
+        self.time_header_label.pack(padx=10, pady=6)
+        self.update_time_header_display()
+
         # Recipe Title Header
         self.title_label = ctk.CTkLabel(
-            self.main_container, text=self.current_recipe_title, font=("Helvetica", 20, "bold"), text_color=self.text_light
+            self.main_container, text=self.current_recipe_title, font=("Helvetica", 18, "bold"), text_color=self.text_light
         )
-        self.title_label.pack(anchor="w", pady=(0, 10))
+        self.title_label.pack(anchor="w", pady=(0, 8))
         
         # Split Layout Container (Left: Checklist | Right: Timer & Controls)
         content_split = ctk.CTkFrame(self.main_container, fg_color="transparent")
@@ -704,7 +805,7 @@ class CookingInaGUI:
         
         # Current Active Instruction Display
         self.step_label = ctk.CTkLabel(
-            right_panel, text=self.get_current_step_text(), font=("Helvetica", 20), 
+            right_panel, text=self.get_current_step_text(), font=("Helvetica", 18), 
             text_color=self.text_light, wraplength=320, justify="left"
         )
         self.step_label.pack(fill="x", pady=(0, 10))
@@ -758,6 +859,22 @@ class CookingInaGUI:
 
         self.update_timer_display()
 
+    def update_time_header_display(self):
+        """Updates the actual vs expected time header label."""
+        if hasattr(self, 'time_header_label') and self.time_header_label.winfo_exists():
+            actual_secs = getattr(self, "session_elapsed_seconds", 0)
+            expected_secs = sum(sec.get("duration_seconds", 1800) for sec in getattr(self, "recipe_sections", []))
+            
+            act_m, act_s = divmod(actual_secs, 60)
+            exp_m, exp_s = divmod(expected_secs, 60)
+            
+            diff_secs = actual_secs - expected_secs
+            diff_m = abs(diff_secs) // 60
+            diff_sign = "+" if diff_secs >= 0 else "-"
+            
+            text = f"Actual: {act_m:02d}:{act_s:02d} | Expected: {exp_m:02d}:{exp_s:02d} ({diff_sign}{diff_m} mins)"
+            self.time_header_label.configure(text=text)
+
     #Added by Justine
     def render_checklist_items(self):
         """Populates the left-side checklist scrollable container with recipe sections/steps."""
@@ -790,7 +907,7 @@ class CookingInaGUI:
             self.ing_checkboxes = []
 
         if not hasattr(self, "ingredient_states"):
-            self.ingredient_states = ({})
+            self.ingredient_states = {}
 
 
         if ingredients_list:
@@ -833,7 +950,7 @@ class CookingInaGUI:
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
         """Allows adding extra steps during active timer without resetting countdown."""
-        modal_box = self.create_modal_overlay(width=420, height=280)
+        modal_box = self.create_modal_overlay(width=420, height=360)
 
         header = ctk.CTkFrame(modal_box, fg_color="transparent")
         header.pack(fill="x", padx=15, pady=(15, 5))
@@ -848,8 +965,37 @@ class CookingInaGUI:
         content = ctk.CTkFrame(modal_box, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=15, pady=10)
 
-        self.mid_cook_textbox = ctk.CTkTextbox(content, height=90, font=("Helvetica", 13), fg_color="#F4F4F4", text_color="#333333")
-        self.mid_cook_textbox.pack(fill="x", pady=(0, 15))
+        input_label = ctk.CTkLabel(content, text="Step Description:", font=("Helvetica", 12, "bold"), text_color=self.text_light)
+        input_label.pack(anchor="w", pady=(0, 2))
+
+        self.mid_cook_textbox = ctk.CTkTextbox(content, height=70, font=("Helvetica", 13), fg_color="#F4F4F4", text_color="#333333")
+        self.mid_cook_textbox.pack(fill="x", pady=(0, 10))
+
+        time_frame = ctk.CTkFrame(content, fg_color="transparent")
+        time_frame.pack(fill="x", pady=(0, 15))
+
+        time_label = ctk.CTkLabel(time_frame, text="Timer Duration:", font=("Helvetica", 12, "bold"), text_color=self.text_light)
+        time_label.pack(side="left", padx=(0, 10))
+
+        self.mid_cook_min_entry = ctk.CTkEntry(
+            time_frame, width=55, placeholder_text="10", font=("Helvetica", 12),
+            fg_color="#F4F4F4", text_color="#333333"
+        )
+        self.mid_cook_min_entry.pack(side="left", padx=2)
+        self.mid_cook_min_entry.insert(0, "10")
+
+        min_unit_lbl = ctk.CTkLabel(time_frame, text="m", font=("Helvetica", 12), text_color=self.text_light)
+        min_unit_lbl.pack(side="left", padx=(2, 10))
+
+        self.mid_cook_sec_entry = ctk.CTkEntry(
+            time_frame, width=55, placeholder_text="0", font=("Helvetica", 12),
+            fg_color="#F4F4F4", text_color="#333333"
+        )
+        self.mid_cook_sec_entry.pack(side="left", padx=2)
+        self.mid_cook_sec_entry.insert(0, "0")
+
+        sec_unit_lbl = ctk.CTkLabel(time_frame, text="s", font=("Helvetica", 12), text_color=self.text_light)
+        sec_unit_lbl.pack(side="left", padx=2)
 
         save_step_btn = ctk.CTkButton(
             content, text="Add Step to Recipe", font=("Helvetica", 14, "bold"),
@@ -860,12 +1006,40 @@ class CookingInaGUI:
     def save_mid_cook_step(self):
         """Saves added step and updates timer view labels instantly."""
         text = self.mid_cook_textbox.get("1.0", "end-1c").strip()
+        
+        try:
+            mins = int(self.mid_cook_min_entry.get().strip() or "0")
+        except ValueError:
+            mins = 0
+
+        try:
+            secs = int(self.mid_cook_sec_entry.get().strip() or "0")
+        except ValueError:
+            secs = 0
+
+        total_seconds = (mins * 60) + secs
+        if total_seconds <= 0:
+            total_seconds = 1800
+            time_str = "30 mins"
+        elif secs > 0:
+            time_str = f"{mins}m {secs}s" if mins else f"{secs} secs"
+        else:
+            time_str = f"{mins} mins"
+
         if text:
-            # Added by Ran-Ran - add to the current section
-            if hasattr(self, "recipe_sections") and self.recipe_sections:
-                self.recipe_sections[self.current_step_index]["steps"].append(text)
+            step_number = len(self.recipe_sections) + 1
+            new_section = {
+                "name": f"Step {step_number}",
+                "time": time_str,
+                "duration_seconds": total_seconds,
+                "steps": [text]
+            }
+            self.recipe_sections.append(new_section)
             self.recipe_steps.append(text)
             self.step_label.configure(text=self.get_current_step_text())
+            self.render_checklist_items()
+            self.update_time_header_display()
+
         self.close_modal()
 
     # Backend Timer & Nav Handlers
@@ -879,6 +1053,10 @@ class CookingInaGUI:
         if self.timer.is_running and hasattr(self, 'timer_label') and self.timer_label.winfo_exists():
             self.timer.decrement()
             self.update_timer_display()
+            
+            # Increment total session elapsed time
+            self.session_elapsed_seconds = getattr(self, "session_elapsed_seconds", 0) + 1
+            self.update_time_header_display()
             
             # If the timer is still running (greater than 0), schedule the next second
             if self.timer.is_running:
@@ -894,6 +1072,7 @@ class CookingInaGUI:
     def on_extend(self):
         self.timer.extend(60)
         self.update_timer_display()
+        self.update_time_header_display()
     
     # Added by Ran-Ran - repeat the current section
     def on_repeat(self):
@@ -921,10 +1100,9 @@ class CookingInaGUI:
             )
 
             self.update_timer_display()
-            #Added by Justine for checklist
             self.render_checklist_items()
         else:
-            # Added by Justine - Mark past the last index so all checklist items show as checked (✔)
+            # Mark past the last index so all checklist items show as checked (✔)
             self.current_step_index = len(self.recipe_sections)
             self.step_label.configure(
                 text="All Steps Completed! Bon Appétit!"
@@ -932,8 +1110,111 @@ class CookingInaGUI:
             self.timer.pause()
             self.render_checklist_items()
 
+            # Trigger metric save when all steps complete
+            self.on_task_complete()
+
     def on_check_metrics(self):
-        print("Backend hook: Check Local Metrics")
+        """Displays the local cooking metrics history in a table view."""
+        self.clear_window()
+
+        # Top Navigation Bar
+        nav_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        nav_frame.pack(fill="x", padx=20, pady=(15, 0))
+
+        back_btn = ctk.CTkButton(
+            nav_frame, text="<- Back to Menu", font=("Helvetica", 13, "bold"),
+            fg_color="#8D8D8D", hover_color="#707070", width=120, height=30, 
+            command=self.show_main_menu
+        )
+        back_btn.pack(side="left")
+
+        # Container Header
+        metrics_container = ctk.CTkFrame(self.root, fg_color="transparent")
+        metrics_container.pack(expand=True, fill="both", padx=20, pady=(10, 20))
+
+        metrics_title = ctk.CTkLabel(
+            metrics_container, text="Local Cooking Metrics", font=("Helvetica", 32, "bold"), text_color=self.text_light
+        )
+        metrics_title.pack(pady=(10, 4))
+
+        metrics_subtitle = ctk.CTkLabel(
+            metrics_container, text="Performance history and completed cooking session times.",
+            font=("Helvetica", 13), text_color="#E0E0E0"
+        )
+        metrics_subtitle.pack(pady=(0, 15))
+
+        # Scrollable Table Card
+        table_card = ctk.CTkScrollableFrame(
+            metrics_container, 
+            fg_color=self.card_bg, 
+            corner_radius=10,
+            scrollbar_button_color=self.primary_orange,
+            scrollbar_button_hover_color=self.hover_orange
+        )
+        table_card.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Retrieve Data from Database
+        try:
+            metrics_data = database_manager.get_all_metrics()
+        except Exception as error:
+            print(f"Error reading metrics: {error}")
+            metrics_data = []
+
+        if not metrics_data:
+            empty_lbl = ctk.CTkLabel(
+                table_card, 
+                text="No cooking metrics recorded yet.\nComplete a cooking recipe session to record timer stats here!", 
+                font=("Helvetica", 14), text_color=self.text_light, justify="center"
+            )
+            empty_lbl.pack(pady=50)
+            return
+
+        # Table Header Row
+        headers = ["Recipe Name", "Base Time", "Extra", "Total", "Date / Notes"]
+        header_frame = ctk.CTkFrame(table_card, fg_color="#8C3E24", corner_radius=6)
+        header_frame.pack(fill="x", pady=(5, 8), padx=5)
+
+        # Column Weight Layout Ratio
+        header_frame.columnconfigure(0, weight=3) # Name
+        header_frame.columnconfigure(1, weight=1) # Base
+        header_frame.columnconfigure(2, weight=1) # Extra
+        header_frame.columnconfigure(3, weight=1) # Total
+        header_frame.columnconfigure(4, weight=2) # Date/Notes
+
+        for col_idx, h_text in enumerate(headers):
+            lbl = ctk.CTkLabel(
+                header_frame, text=h_text, font=("Helvetica", 12, "bold"), 
+                text_color=self.text_light, anchor="w" if col_idx in (0, 4) else "center"
+            )
+            lbl.grid(row=0, column=col_idx, padx=6, pady=8, sticky="ew")
+
+        # Table Data Rows
+        for row_idx, record in enumerate(metrics_data):
+            recipe_name, base_time, extra_time, total_time, notes, created_at = record
+
+            date_str = str(created_at).split()[0] if " " in str(created_at) else str(created_at)
+            notes_str = f"{date_str} ({notes})" if notes else date_str
+
+            row_frame = ctk.CTkFrame(
+                table_card, 
+                fg_color="#A04C31" if row_idx % 2 == 0 else self.card_bg, 
+                corner_radius=4
+            )
+            row_frame.pack(fill="x", pady=2, padx=5)
+
+            row_frame.columnconfigure(0, weight=3)
+            row_frame.columnconfigure(1, weight=1)
+            row_frame.columnconfigure(2, weight=1)
+            row_frame.columnconfigure(3, weight=1)
+            row_frame.columnconfigure(4, weight=2)
+
+            row_fields = [recipe_name, base_time, extra_time, total_time, notes_str]
+            for col_idx, val in enumerate(row_fields):
+                lbl = ctk.CTkLabel(
+                    row_frame, text=str(val), font=("Helvetica", 11), 
+                    text_color=self.text_light, anchor="w" if col_idx in (0, 4) else "center"
+                )
+                lbl.grid(row=0, column=col_idx, padx=6, pady=6, sticky="ew")
 
 # Class that supports both CustomTkinter and DnD(drag and drop) events
 class CustomDnDWindow(ctk.CTk, TkinterDnD.DnDWrapper):

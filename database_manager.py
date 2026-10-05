@@ -19,13 +19,13 @@ Public functions:
     get_all_recipes()        every saved recipe, newest first, as parser-style dicts
     delete_recipe(id)        remove a recipe and everything that belongs to it
 """
-
 import hashlib
 import json
 import os
 import sqlite3
 import sys
 from contextlib import contextmanager
+from datetime import datetime
 
 DB_FILENAME = "cooking_ina.db"
 
@@ -326,6 +326,38 @@ def delete_recipe(recipe_id, db_path=None):
 
         return cursor.rowcount > 0
 
+def init_metrics_table(db_path=None):
+    """Creates the metrics table if it doesn't already exist."""
+    with _connect(db_path) as connection:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipe_name TEXT NOT NULL,
+                base_time TEXT NOT NULL,
+                extra_time TEXT NOT NULL,
+                total_time TEXT NOT NULL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+def save_metric(name, base_time, extra_time, total_time, notes="", db_path=None):
+    """Saves a completed session metric record."""
+    with _connect(db_path) as connection:
+        connection.execute("""
+            INSERT INTO metrics (recipe_name, base_time, extra_time, total_time, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (name, base_time, extra_time, total_time, notes))
+
+def get_all_metrics(db_path=None):
+    """Retrieves all metric records, newest first."""
+    with _connect(db_path) as connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT recipe_name, base_time, extra_time, total_time, notes, created_at 
+            FROM metrics ORDER BY id DESC
+        """)
+        return cursor.fetchall()
 
 if __name__ == "__main__":
     # Quick check from the terminal:  python database_manager.py
