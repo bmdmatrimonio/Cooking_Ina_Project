@@ -1,12 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog
+import copy # New
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
 from recipe_parser import parse_recipe_file, recipe_to_timer_data, parse_recipe_text
+from database_manager import initialize_database, save_recipe, get_all_recipes #New
 
-import copy  # derek-cut
-from database_manager import initialize_database, save_recipe, get_all_recipes 
 # Loads recipe sections from the parser
 
 class CookingInaGUI:
@@ -14,11 +14,11 @@ class CookingInaGUI:
         self.root = root
         self.root.title("Cooking Ina - Digital Cooking Assistant")
         self.root.geometry("650x580")
-
+        
         # Rescaling Feature & Minimum Window Boundary
         self.root.resizable(True, True)
         self.root.minsize(550, 500)
-
+        
         # Color Palette (Burnt Rust Theme)
         self.bg_color = "#9E472A"         # Deep rust background
         self.card_bg = "#B05638"          # Lighter clay shade for inner timer card
@@ -27,12 +27,12 @@ class CookingInaGUI:
         self.text_light = "#FFFFFF"       # White text for contrast on dark background
         self.accent_green = "#4CAF50"     # Green for advancing to the next step
         self.ilovepdf_red = "#E53935"     # Bold red for iLovePDF style button
-
+        
         self.root.configure(fg_color=self.bg_color)
-
+        
         # Initialize Backend Timer (30 minutes = 1800 seconds)
         self.timer = CookingTimer(initial_seconds=1800)
-
+        
         # Store current recipe details globally across views
         self.current_recipe_title = "Recipe: Adobo Placeholder"
         # Added by Ran-Ran - default recipe section
@@ -45,7 +45,7 @@ class CookingInaGUI:
         self.recipe_steps = self.recipe_sections[0]["steps"]
         self.recipe_ingredients = []  # NEW
         self.current_step_index = 0
-
+        
         # Overlay frame tracking for fake modals
         self.overlay_frame = None
 
@@ -55,10 +55,10 @@ class CookingInaGUI:
             initialize_database()
         except Exception as error:
             print(f"Could not initialize the recipe database: {error}")
-
+        
         # Start the app on the Main Menu
         self.show_main_menu()
-    
+
     def clear_window(self):
         """Helper method to destroy all widgets currently on the screen."""
         self.close_modal()
@@ -122,7 +122,7 @@ class CookingInaGUI:
     def show_main_menu(self):
         """Builds and displays the main menu screen with vertical stacking."""
         self.clear_window()
-
+        
         if self.timer.is_running:
             self.timer.pause()
 
@@ -130,9 +130,9 @@ class CookingInaGUI:
         self.menu_container.pack(fill="both", expand=True, padx=20, pady=40)
 
         self.menu_title = ctk.CTkLabel(
-            self.menu_container,
-            text="Cooking Ina",
-            font=("Georgia", 56, "bold"),
+            self.menu_container, 
+            text="Cooking Ina", 
+            font=("Georgia", 56, "bold"), 
             text_color=self.text_light
         )
         self.menu_title.pack(pady=(20, 35))
@@ -146,14 +146,14 @@ class CookingInaGUI:
 
         self.btn_manual = ctk.CTkButton(
             self.button_frame, text="Manual Entry", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange,
+            fg_color=self.primary_orange, hover_color=self.hover_orange, 
             width=btn_width, height=btn_height, command=self.show_manual_entry_modal
         )
         self.btn_manual.pack(pady=10)
 
         self.btn_file = ctk.CTkButton(
             self.button_frame, text="Upload Recipe File", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange,
+            fg_color=self.primary_orange, hover_color=self.hover_orange, 
             width=btn_width, height=btn_height, command=self.show_file_upload_screen
         )
         self.btn_file.pack(pady=10)
@@ -168,10 +168,11 @@ class CookingInaGUI:
 
         self.btn_metrics = ctk.CTkButton(
             self.button_frame, text="Check Local Metrics", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange,
+            fg_color=self.primary_orange, hover_color=self.hover_orange, 
             width=btn_width, height=btn_height, command=self.on_check_metrics
         )
         self.btn_metrics.pack(pady=10)
+
     # Manual Modal Entry Screen
     def show_manual_entry_modal(self):
         """Displays centered fake window for recipe step entry."""
@@ -351,6 +352,7 @@ class CookingInaGUI:
         self.current_step_index = 0
         self.close_modal()
         self.show_timer_screen()
+
     # File Upload Screen
     def show_file_upload_screen(self):
         """Displays file selector section."""
@@ -459,6 +461,170 @@ class CookingInaGUI:
 
         except Exception as error:
             print(f"Error reading recipe file: {error}")
+
+    def save_recipe_to_database(self, recipe):
+        """Saves a recipe dictionary to cooking_ina.db.
+
+        A database problem is only reported in the console. It must never
+        stop the user from cooking the recipe they just loaded.
+        """
+        try:
+            return save_recipe(recipe)
+        except Exception as error:
+            print(f"Could not save recipe to the database: {error}")
+            return None
+
+    def reset_ingredient_checklist(self):
+        """Clears the ingredient tick-boxes so a newly opened recipe starts unchecked."""
+        self.ingredient_states = {}
+        self.ing_checkboxes = []
+
+    def show_saved_recipes_screen(self):
+        """Lists every recipe stored in the local database so one can be loaded."""
+        self.clear_window()
+
+        # Navigation Bar
+        nav_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        nav_frame.pack(fill="x", padx=20, pady=(15, 0))
+
+        back_btn = ctk.CTkButton(
+            nav_frame, text="<- Back to Menu", font=("Helvetica", 13, "bold"),
+            fg_color="#8D8D8D", hover_color="#707070", width=120, height=30, command=self.show_main_menu
+        )
+        back_btn.pack(side="left")
+
+        # Main Content Area
+        saved_container = ctk.CTkFrame(self.root, fg_color="transparent")
+        saved_container.pack(expand=True, fill="both", padx=20, pady=(10, 20))
+
+        saved_title = ctk.CTkLabel(
+            saved_container, text="Saved Recipes", font=("Helvetica", 36, "bold"), text_color=self.text_light
+        )
+        saved_title.pack(pady=(10, 4))
+
+        saved_subtitle = ctk.CTkLabel(
+            saved_container, text="Pick a recipe to load it into the cooking timer.",
+            font=("Helvetica", 14), text_color="#E0E0E0"
+        )
+        saved_subtitle.pack(pady=(0, 15))
+
+        # Scrollable list of saved recipes
+        recipe_list = ctk.CTkScrollableFrame(
+            saved_container, fg_color="transparent",
+            scrollbar_button_color=self.primary_orange,
+            scrollbar_button_hover_color=self.hover_orange
+        )
+        recipe_list.pack(fill="both", expand=True)
+
+        try:
+            recipes = get_all_recipes()
+        except Exception as error:
+            print(f"Error reading saved recipes: {error}")
+            recipes = None
+
+        if not recipes:
+            if recipes is None:
+                empty_text = "The recipe database could not be read."
+            else:
+                empty_text = (
+                    "No saved recipes yet.\n"
+                    "Upload a recipe file or add one manually,\n"
+                    "and it will show up here."
+                )
+
+            empty_lbl = ctk.CTkLabel(
+                recipe_list, text=empty_text, font=("Helvetica", 14),
+                text_color="#E0E0E0", justify="center"
+            )
+            empty_lbl.pack(pady=40)
+            return
+
+        for recipe in recipes:
+            self.build_saved_recipe_row(recipe_list, recipe)
+
+    def build_saved_recipe_row(self, parent, recipe):
+        """Creates one clickable recipe card for the saved recipes list."""
+        row = ctk.CTkFrame(parent, fg_color=self.card_bg, corner_radius=10)
+        row.pack(fill="x", pady=5, padx=2)
+
+        title_lbl = ctk.CTkLabel(
+            row, text=recipe["title"], font=("Helvetica", 16, "bold"),
+            text_color=self.text_light, anchor="w", justify="left", wraplength=420
+        )
+        title_lbl.pack(fill="x", padx=14, pady=(10, 0))
+
+        details_lbl = ctk.CTkLabel(
+            row, text=self.describe_saved_recipe(recipe), font=("Helvetica", 12),
+            text_color=self.text_light, anchor="w", justify="left"
+        )
+        details_lbl.pack(fill="x", padx=14, pady=(0, 10))
+
+        # The whole card acts as one button: lighter clay -> terracotta on hover
+        def on_enter(event=None):
+            if row.winfo_exists():
+                row.configure(fg_color=self.primary_orange)
+
+        def on_leave(event=None):
+            if row.winfo_exists():
+                row.configure(fg_color=self.card_bg)
+
+        def on_click(event=None):
+            self.load_saved_recipe(recipe)
+
+        for widget in (row, title_lbl, details_lbl):
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
+            widget.bind("<Button-1>", on_click)
+
+    def describe_saved_recipe(self, recipe):
+        """Builds the one-line summary shown under a saved recipe's title."""
+        stage_count = len(recipe["sections"])
+        parts = [f"{stage_count} stage{'s' if stage_count != 1 else ''}"]
+
+        ingredient_count = len(recipe["ingredients"])
+        if ingredient_count:
+            parts.append(f"{ingredient_count} ingredient{'s' if ingredient_count != 1 else ''}")
+
+        total_minutes = sum(
+            section["duration_seconds"] for section in recipe["sections"]
+        ) // 60
+
+        if total_minutes:
+            hours, minutes = divmod(total_minutes, 60)
+
+            if hours and minutes:
+                parts.append(f"{hours} h {minutes} min")
+            elif hours:
+                parts.append(f"{hours} h")
+            else:
+                parts.append(f"{minutes} min")
+
+        return "  •  ".join(parts)
+
+    def load_saved_recipe(self, recipe):
+        """Loads a recipe from the database into the active session and starts it."""
+        # Work on a copy so adding steps mid-cook never alters the list on screen
+        title, sections = recipe_to_timer_data(copy.deepcopy(recipe))
+
+        if not sections:
+            print("This saved recipe has no sections to cook.")
+            return
+
+        # Same session variables load_recipe_file() fills for a parsed file
+        self.recipe_ingredients = list(recipe.get("ingredients", []))
+        self.recipe_sections = sections
+        self.recipe_steps = [
+            step
+            for section in sections
+            for step in section["steps"]
+        ]
+        self.current_recipe_title = f"Recipe: {title}"
+        self.reset_ingredient_checklist()
+
+        # Always begin at the first stage, then let the timer screen build the
+        # checklist and load that stage's countdown.
+        self.current_step_index = 0
+        self.show_timer_screen()
 
     # Added by Ran-Ran - get the current section time
     def get_current_section_duration(self):
