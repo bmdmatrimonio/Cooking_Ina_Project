@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog
 import copy
+
+from anyio import current_time
 import database_manager
 from database_manager import save_metric, get_all_recipes, initialize_database
 import customtkinter as ctk
@@ -815,31 +817,40 @@ class CookingInaGUI:
         self.timer_box.pack(expand=True, pady=5)
         
         self.timer_label = ctk.CTkLabel(
-            self.timer_box, text="30:00", font=("Helvetica", 64, "bold"), text_color=self.text_light
+            self.timer_box, text="30:00", font=("Helvetica", 80, "bold"), text_color=self.text_light
         )
-        self.timer_label.pack(padx=30, pady=12)
+        self.timer_label.pack(padx=45, pady=20)
+
+        self.stamps_container = None
+        self.stamped_laps = []
         
         # Bottom Controls
         self.controls_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
         self.controls_frame.pack(pady=8)
-        
+        btn_w = 85
         self.start_btn = ctk.CTkButton(
-            self.controls_frame, text="Start", font=("Helvetica", 13, "bold"),
+            self.controls_frame, text="Start", font=("Helvetica", 12, "bold"),
             fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_start
         )
-        self.start_btn.grid(row=0, column=0, padx=5)
+        self.start_btn.grid(row=0, column=0, padx=4)
         
         self.pause_btn = ctk.CTkButton(
-            self.controls_frame, text="Pause", font=("Helvetica", 13, "bold"),
+            self.controls_frame, text="Pause", font=("Helvetica", 12, "bold"),
             fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_pause
         )
-        self.pause_btn.grid(row=0, column=1, padx=5)
+        self.pause_btn.grid(row=0, column=1, padx=4)
         
         self.extend_btn = ctk.CTkButton(
-            self.controls_frame, text="+1 Min", font=("Helvetica", 13, "bold"),
+            self.controls_frame, text="+1 Min", font=("Helvetica", 12, "bold"),
             fg_color=self.primary_orange, hover_color=self.hover_orange, text_color=self.text_light, width=95, height=34, command=self.on_extend
         )
-        self.extend_btn.grid(row=0, column=2, padx=5)
+        self.extend_btn.grid(row=0, column=2, padx=4)
+
+        self.stamp_btn = ctk.CTkButton(
+            self.controls_frame, text="Stamp", font=("Helvetica", 12, "bold"),
+            fg_color="#343A40", hover_color="#212529", text_color=self.text_light, width=80, height=34, command=self.on_stamp
+        )
+        self.stamp_btn.grid(row=0, column=3, padx=4)
         
         # Footer Step Navigation Controls
         self.nav_frame = ctk.CTkFrame(right_panel, fg_color="transparent")
@@ -847,13 +858,13 @@ class CookingInaGUI:
         
         self.repeat_btn = ctk.CTkButton(
             self.nav_frame, text="Repeat Step", font=("Helvetica", 12),
-            fg_color="#8D8D8D", hover_color="#707070", width=140, height=32, command=self.on_repeat
+            fg_color="#8D8D8D", hover_color="#707070", width=138, height=32, command=self.on_repeat
         )
         self.repeat_btn.grid(row=0, column=0, padx=6)
         
         self.next_btn = ctk.CTkButton(
             self.nav_frame, text="Next Step ->", font=("Helvetica", 12, "bold"),
-            fg_color=self.accent_green, hover_color="#388E3C", width=140, height=32, command=self.on_next_step
+            fg_color=self.accent_green, hover_color="#388E3C", width=138, height=32, command=self.on_next_step
         )
         self.next_btn.grid(row=0, column=1, padx=6)
 
@@ -900,7 +911,8 @@ class CookingInaGUI:
                 )
                 item_lbl.pack(fill="x", padx=8, pady=6)
 
-        # Added by Jasper - Ingredients checklist
+        # Added by Jasper - Ingredients checklist and time stamp
+
         ingredients_list = getattr(self, "recipe_ingredients", []) or []
 
         if not hasattr(self, "ing_checkboxes"):
@@ -949,6 +961,10 @@ class CookingInaGUI:
 
     # Dynamic Step Creation Prompt During Cooking
     def show_mid_cook_add_step_modal(self):
+        #pauses time when menu is opened - jasper
+        if hasattr(self, "timer") and self.timer.is_running:
+            self.timer.pause()
+
         """Allows adding extra steps during active timer without resetting countdown."""
         modal_box = self.create_modal_overlay(width=420, height=360)
 
@@ -1073,6 +1089,34 @@ class CookingInaGUI:
         self.timer.extend(60)
         self.update_timer_display()
         self.update_time_header_display()
+
+    def on_stamp(self):
+        """Creates or expands the stamp container only when a stamp is recorded."""
+        # Create the frame on the very first stamp click
+        if self.stamps_container is None or not self.stamps_container.winfo_exists():
+            self.stamps_container = ctk.CTkFrame(
+                self.timer_box, 
+                fg_color="#8C3E24", 
+                corner_radius=8
+            )
+            # Adjust padding on timer_label slightly so layout looks balanced
+            self.timer_label.pack_configure(pady=(12, 4))
+            self.stamps_container.pack(padx=20, pady=(0, 12), fill="x")
+    
+         # Get current time stamp
+        current_time = self.timer.get_time_formatted()
+        lap_num = len(self.stamped_laps) + 1
+        stamp_text = f"Stamp {lap_num}: {current_time} remaining"
+        self.stamped_laps.append(stamp_text)
+    
+        # Add new entry row (expands the frame height outwards)
+        lap_label = ctk.CTkLabel(
+            self.stamps_container,
+            text=stamp_text,
+            font=("Helvetica", 11, "bold"),
+            text_color=self.text_light
+        )
+        lap_label.pack(fill="x", padx=10, pady=2)
     
     # Added by Ran-Ran - repeat the current section
     def on_repeat(self):
@@ -1082,6 +1126,7 @@ class CookingInaGUI:
     # Added by Ran-Ran - move between cooking sections
     # Added by Justine - for checklist
     def on_next_step(self):
+        self.clear_stamps()
         """Move to the next cooking stage and load its timer duration."""
         if (
             hasattr(self, "recipe_sections")
@@ -1112,6 +1157,16 @@ class CookingInaGUI:
 
             # Trigger metric save when all steps complete
             self.on_task_complete()
+
+    def clear_stamps(self):
+        """clear the stamp container frame and resets the lap list."""
+        self.stamped_laps = []
+        if self.stamps_container is not None and self.stamps_container.winfo_exists():
+            self.stamps_container.destroy()
+            self.stamps_container = None
+            # Restore default padding on the timer label
+            if hasattr(self, 'timer_label') and self.timer_label.winfo_exists():
+                self.timer_label.pack_configure(pady=20)
 
     def on_check_metrics(self):
         """Displays the local cooking metrics history in a table view."""

@@ -32,6 +32,16 @@ DB_FILENAME = "cooking_ina.db"
 # Same fallback duration recipe_parser.py uses when a section has no time
 DEFAULT_DURATION_SECONDS = 1800
 
+egg = [
+    ("Soft Boiled Egg", "6 mins"),
+    ("Hard Boiled Egg", "10 - 12 mins"),
+]
+
+pasta_noodles = [
+    ("Spaghetti", "8-10 mins"),
+]
+
+saved_food_times = egg + pasta_noodles
 
 def _default_db_path():
     # Keep the database next to the app instead of the current working
@@ -81,6 +91,12 @@ CREATE TABLE IF NOT EXISTS steps (
     position          INTEGER NOT NULL,
     instruction_text  TEXT    NOT NULL,
     UNIQUE (section_id, position)
+);
+
+CREATE TABLE IF NOT EXISTS food_cooking_times (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    food_item   TEXT    NOT NULL UNIQUE,
+    time_needed TEXT    NOT NULL
 );
 """
 
@@ -359,13 +375,22 @@ def get_all_metrics(db_path=None):
         """)
         return cursor.fetchall()
 
+def get_all_saved_cooking_times(db_path=None):
+    """Retrieves all pre-saved food items and cooking times."""
+    with _connect(db_path) as connection:
+        cursor = connection.execute("SELECT food_item, time_needed FROM food_cooking_times")
+        return cursor.fetchall()
+
 if __name__ == "__main__":
     # Quick check from the terminal:  python database_manager.py
     initialize_database()
     saved = get_all_recipes()
+    food_times = get_all_saved_cooking_times()
 
     print(f"Database: {DB_PATH}")
     print(f"{len(saved)} saved recipe(s)")
-
+    print(f"{len(food_times)} pre-saved food cooking time(s):")
     for item in saved:
         print(f"  [{item['id']}] {item['title']} - {len(item['sections'])} sections")
+    for item, time_needed in food_times:
+        print(f"  - {item}: {time_needed}")
