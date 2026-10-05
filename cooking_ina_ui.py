@@ -114,7 +114,7 @@ class CookingInaGUI:
     def show_main_menu(self):
         """Builds and displays the main menu screen with vertical stacking."""
         self.clear_window()
-        
+
         if self.timer.is_running:
             self.timer.pause()
 
@@ -122,9 +122,9 @@ class CookingInaGUI:
         self.menu_container.pack(fill="both", expand=True, padx=20, pady=40)
 
         self.menu_title = ctk.CTkLabel(
-            self.menu_container, 
-            text="Cooking Ina", 
-            font=("Georgia", 56, "bold"), 
+            self.menu_container,
+            text="Cooking Ina",
+            font=("Georgia", 56, "bold"),
             text_color=self.text_light
         )
         self.menu_title.pack(pady=(20, 35))
@@ -138,25 +138,32 @@ class CookingInaGUI:
 
         self.btn_manual = ctk.CTkButton(
             self.button_frame, text="Manual Entry", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange, 
+            fg_color=self.primary_orange, hover_color=self.hover_orange,
             width=btn_width, height=btn_height, command=self.show_manual_entry_modal
         )
         self.btn_manual.pack(pady=10)
 
         self.btn_file = ctk.CTkButton(
             self.button_frame, text="Upload Recipe File", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange, 
+            fg_color=self.primary_orange, hover_color=self.hover_orange,
             width=btn_width, height=btn_height, command=self.show_file_upload_screen
         )
         self.btn_file.pack(pady=10)
 
+        # NEW - opens the list of recipes stored in the local database
+        self.btn_saved = ctk.CTkButton(
+            self.button_frame, text="View Saved Recipes", font=button_font,
+            fg_color=self.primary_orange, hover_color=self.hover_orange,
+            width=btn_width, height=btn_height, command=self.show_saved_recipes_screen
+        )
+        self.btn_saved.pack(pady=10)
+
         self.btn_metrics = ctk.CTkButton(
             self.button_frame, text="Check Local Metrics", font=button_font,
-            fg_color=self.primary_orange, hover_color=self.hover_orange, 
+            fg_color=self.primary_orange, hover_color=self.hover_orange,
             width=btn_width, height=btn_height, command=self.on_check_metrics
         )
         self.btn_metrics.pack(pady=10)
-
     # Manual Modal Entry Screen
     def show_manual_entry_modal(self):
         """Displays centered fake window for recipe step entry."""
