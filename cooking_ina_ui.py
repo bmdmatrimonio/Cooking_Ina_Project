@@ -304,6 +304,11 @@ class CookingInaGUI:
 
     def start_manual_recipe(self):
         title = self.recipe_title_entry.get().strip()
+
+        # NEW - a bare "Start Cooking" (no title, no steps) is only a quick
+        # timer, so there is no recipe worth saving.
+        is_quick_timer = not title and not self.recipe_steps
+
         if title:
             self.current_recipe_title = f"Recipe: {title}"
         elif self.recipe_steps:
@@ -320,10 +325,24 @@ class CookingInaGUI:
                 "duration_seconds": 10,
                 "steps": self.recipe_steps
             }]
+
+        # NEW - manual recipes have no ingredient list, so don't carry over
+        # the ingredients (or ticked boxes) of the previously opened recipe.
+        self.recipe_ingredients = []
+        self.reset_ingredient_checklist()
+
+        # NEW - save the manually created recipe to the database
+        if not is_quick_timer and self.recipe_sections:
+            self.save_recipe_to_database({
+                "title": title or "Custom Recipe",
+                "ingredients": [],
+                "sections": self.recipe_sections,
+                "steps": list(self.recipe_steps)
+            })
+
         self.current_step_index = 0
         self.close_modal()
         self.show_timer_screen()
-
     # File Upload Screen
     def show_file_upload_screen(self):
         """Displays file selector section."""
