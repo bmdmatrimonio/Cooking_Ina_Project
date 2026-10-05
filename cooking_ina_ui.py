@@ -431,6 +431,9 @@ class CookingInaGUI:
                 print("No recipe sections were found in the selected file.")
                 return
 
+            # NEW - keep a copy of every successfully parsed recipe
+            self.save_recipe_to_database(recipe)
+
             # Added by Ran-Ran - keep the parsed sections
             self.recipe_ingredients = ingredients = recipe.get("ingredients", [])
             self.recipe_sections = sections
@@ -439,6 +442,7 @@ class CookingInaGUI:
                 for section in sections
                 for step in section["steps"]
             ]
+            self.reset_ingredient_checklist()  # NEW
 
             self.current_recipe_title = f"Recipe: {title}"
             self.current_step_index = 0
