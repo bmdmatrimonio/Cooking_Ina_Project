@@ -5,6 +5,8 @@ from tkinterdnd2 import TkinterDnD, DND_FILES
 from timer_audio import CookingTimer
 from recipe_parser import parse_recipe_file, recipe_to_timer_data, parse_recipe_text
 
+import copy  # derek-cut
+from database_manager import initialize_database, save_recipe, get_all_recipes 
 # Loads recipe sections from the parser
 
 class CookingInaGUI:
