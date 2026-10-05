@@ -14,11 +14,11 @@ class CookingInaGUI:
         self.root = root
         self.root.title("Cooking Ina - Digital Cooking Assistant")
         self.root.geometry("650x580")
-        
+
         # Rescaling Feature & Minimum Window Boundary
         self.root.resizable(True, True)
         self.root.minsize(550, 500)
-        
+
         # Color Palette (Burnt Rust Theme)
         self.bg_color = "#9E472A"         # Deep rust background
         self.card_bg = "#B05638"          # Lighter clay shade for inner timer card
@@ -27,12 +27,12 @@ class CookingInaGUI:
         self.text_light = "#FFFFFF"       # White text for contrast on dark background
         self.accent_green = "#4CAF50"     # Green for advancing to the next step
         self.ilovepdf_red = "#E53935"     # Bold red for iLovePDF style button
-        
+
         self.root.configure(fg_color=self.bg_color)
-        
+
         # Initialize Backend Timer (30 minutes = 1800 seconds)
         self.timer = CookingTimer(initial_seconds=1800)
-        
+
         # Store current recipe details globally across views
         self.current_recipe_title = "Recipe: Adobo Placeholder"
         # Added by Ran-Ran - default recipe section
@@ -43,14 +43,22 @@ class CookingInaGUI:
             "steps": ["Marinate the pork and chicken for 30 minutes."]
         }]
         self.recipe_steps = self.recipe_sections[0]["steps"]
+        self.recipe_ingredients = []  # NEW
         self.current_step_index = 0
-        
+
         # Overlay frame tracking for fake modals
         self.overlay_frame = None
-        
+
+        # NEW - create cooking_ina.db and its tables on first launch.
+        # The app still runs (just without saving) if this ever fails.
+        try:
+            initialize_database()
+        except Exception as error:
+            print(f"Could not initialize the recipe database: {error}")
+
         # Start the app on the Main Menu
         self.show_main_menu()
-
+    
     def clear_window(self):
         """Helper method to destroy all widgets currently on the screen."""
         self.close_modal()
